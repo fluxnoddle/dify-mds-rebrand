@@ -5,12 +5,12 @@ export class Theme {
   public chatColorTheme: string | null
   public chatColorThemeInverted: boolean
 
-  public primaryColor = '#157E46'
-  public backgroundHeaderColorStyle = 'backgroundImage: linear-gradient(to right, #157E46, #52bd94)'
+  public primaryColor = '#0c4123'
+  public backgroundHeaderColorStyle = 'backgroundImage: linear-gradient(to right, #0c4123, #52bd94)'
   public headerBorderBottomStyle = ''
   public colorFontOnHeaderStyle = 'color: white'
   public colorPathOnHeader = 'text-text-primary-on-surface'
-  public backgroundButtonDefaultColorStyle = 'backgroundColor: #157E46'
+  public backgroundButtonDefaultColorStyle = 'backgroundColor: #0c4123'
   public roundedBackgroundColorStyle = 'backgroundColor: rgb(232 245 240)'
   public chatBubbleColorStyle = ''
 
@@ -23,7 +23,7 @@ export class Theme {
 
   private configCustomColor() {
     if (this.chatColorTheme !== null && this.chatColorTheme !== '') {
-      this.primaryColor = this.chatColorTheme ?? '#157E46'
+      this.primaryColor = this.chatColorTheme ?? '#0c4123'
       this.backgroundHeaderColorStyle = `backgroundColor: ${this.primaryColor}`
       this.backgroundButtonDefaultColorStyle = `backgroundColor: ${this.primaryColor}; color: ${this.colorFontOnHeaderStyle};`
       this.roundedBackgroundColorStyle = `backgroundColor: ${hexToRGBA(this.primaryColor, 0.05)}`

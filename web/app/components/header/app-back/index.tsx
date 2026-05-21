@@ -20,7 +20,7 @@ export default function AppBack({ curApp }: IAppBackProps) {
       className={cn(`
         flex h-7 cursor-pointer items-center rounded-[10px]
         pr-2 pl-2.5 font-semibold
-        text-[#157E46]
+        text-[#0c4123]
         ${curApp && 'hover:bg-[#e8f5f0]'}
       `)}
       onMouseEnter={() => setHovered(true)}

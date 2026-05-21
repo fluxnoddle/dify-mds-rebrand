@@ -1,15 +1,23 @@
+/* MDS - Metadata Solutions brand tokens (light).
+   Palette source: https://www.metasolutions.ai/css/styles.css :root vars
+     --primary       #52bd94   mid green (lighter accent)
+     --primary-dark  #0c4123   deep green (headings + CTA)  -> primary UI
+     --primary-light #7dd3ae   tint
+     --main-dark     #0a3319   darkest
+     --surface       #e8f5f0   bg subtle
+   Logo fill #157E46 stays inside logo assets only. */
 html[data-theme="light"] {
-  /* primary button — current values at packages/dify-ui/src/themes/light.css:23-30 */
-  --color-components-button-primary-bg: #157E46;
-  --color-components-button-primary-bg-hover: #0c4123;
-  --color-components-button-primary-bg-disabled: rgb(21 126 70 / 0.14);
+  /* primary button: deep green for max contrast on white bg */
+  --color-components-button-primary-bg: #0c4123;
+  --color-components-button-primary-bg-hover: #0a3319;
+  --color-components-button-primary-bg-disabled: rgb(12 65 35 / 0.14);
 
-  /* text accent — current values at light.css:404,408,409 */
-  --color-text-accent: #157E46;
-  --color-text-accent-secondary: #1a5c35;
-  --color-text-accent-light-mode-only: #157E46;
+  /* text accent: matches MDS heading color */
+  --color-text-accent: #0c4123;
+  --color-text-accent-secondary: #157E46;
+  --color-text-accent-light-mode-only: #0c4123;
 
-  /* util-blue ramp -> green ramp (50-900). current at light.css:652-661 */
+  /* util-blue ramp -> MDS green ramp (50 lightest, 900 darkest) */
   --color-util-colors-blue-blue-50:  #e8f5f0;
   --color-util-colors-blue-blue-100: #d1ebe0;
   --color-util-colors-blue-blue-200: #a8d9c1;
