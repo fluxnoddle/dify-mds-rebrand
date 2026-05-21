@@ -3,6 +3,8 @@
 @import '@langgenius/dify-ui/styles.css';
 @import '../../themes/manual-light.css' layer(base);
 @import '../../themes/manual-dark.css' layer(base);
+@import '../../themes/brand-metasolutions-light.css' layer(base);
+@import '../../themes/brand-metasolutions-dark.css' layer(base);
 @import './monaco-sticky-fix.css' layer(base);
 
 @import '../components/base/action-button/index.css';

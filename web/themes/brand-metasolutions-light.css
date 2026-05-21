@@ -1,0 +1,23 @@
+html[data-theme="light"] {
+  /* primary button — current values at packages/dify-ui/src/themes/light.css:23-30 */
+  --color-components-button-primary-bg: #157E46;
+  --color-components-button-primary-bg-hover: #0c4123;
+  --color-components-button-primary-bg-disabled: rgb(21 126 70 / 0.14);
+
+  /* text accent — current values at light.css:404,408,409 */
+  --color-text-accent: #157E46;
+  --color-text-accent-secondary: #1a5c35;
+  --color-text-accent-light-mode-only: #157E46;
+
+  /* util-blue ramp -> green ramp (50-900). current at light.css:652-661 */
+  --color-util-colors-blue-blue-50:  #e8f5f0;
+  --color-util-colors-blue-blue-100: #d1ebe0;
+  --color-util-colors-blue-blue-200: #a8d9c1;
+  --color-util-colors-blue-blue-300: #7dd3ae;
+  --color-util-colors-blue-blue-400: #52bd94;
+  --color-util-colors-blue-blue-500: #157E46;
+  --color-util-colors-blue-blue-600: #0c4123;
+  --color-util-colors-blue-blue-700: #0a3319;
+  --color-util-colors-blue-blue-800: #082515;
+  --color-util-colors-blue-blue-900: #051a0e;
+}

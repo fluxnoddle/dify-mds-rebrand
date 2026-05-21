@@ -1,7 +1,7 @@
 {
-  "name": "Dify",
-  "short_name": "Dify",
-  "description": "Build Production Ready Agentic AI Solutions",
+  "name": "MDS - Metadata Solutions",
+  "short_name": "MDS",
+  "description": "Metadata & Security - Ready for AI",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -31,7 +31,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#1C64F2",
+  "theme_color": "#157E46",
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "/",

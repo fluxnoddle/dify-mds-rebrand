@@ -1,0 +1,19 @@
+html[data-theme="dark"] {
+  --color-components-button-primary-bg: #157E46;
+  --color-components-button-primary-bg-hover: #1f9657;
+  --color-components-button-primary-bg-disabled: rgb(255 255 255 / 0.03);
+
+  --color-text-accent: #52bd94;
+  --color-text-accent-secondary: #7dd3ae;
+  --color-text-accent-light-mode-only: #d9d9de;
+
+  /* inverted ramp: 50 = darkest, 700 = lightest */
+  --color-util-colors-blue-blue-50:  #0a3319;
+  --color-util-colors-blue-blue-100: #0c4123;
+  --color-util-colors-blue-blue-200: #145531;
+  --color-util-colors-blue-blue-300: #1a5c35;
+  --color-util-colors-blue-blue-400: #157E46;
+  --color-util-colors-blue-blue-500: #1f9657;
+  --color-util-colors-blue-blue-600: #52bd94;
+  --color-util-colors-blue-blue-700: #7dd3ae;
+}
