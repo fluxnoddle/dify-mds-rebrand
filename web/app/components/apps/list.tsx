@@ -24,7 +24,6 @@ import { AppModeEnum, AppModes } from '@/types/app'
 import AppCard from './app-card'
 import { AppCardSkeleton } from './app-card-skeleton'
 import Empty from './empty'
-import Footer from './footer'
 import useAppsQueryState from './hooks/use-apps-query-state'
 import { useDSLDragDrop } from './hooks/use-dsl-drag-drop'
 import NewAppCard from './new-app-card'
@@ -319,9 +318,6 @@ const List: FC<Props> = ({
             <span className="i-ri-drag-drop-line h-4 w-4" />
             <span className="system-xs-regular">{t('newApp.dropDSLToCreateApp', { ns: 'app' })}</span>
           </div>
-        )}
-        {!systemFeatures.branding.enabled && (
-          <Footer />
         )}
         <CheckModal />
         <div ref={anchorRef} className="h-0"> </div>
