@@ -12,10 +12,37 @@ html[data-theme="light"] {
   --color-components-button-primary-bg-hover: #0a3319;
   --color-components-button-primary-bg-disabled: rgb(12 65 35 / 0.14);
 
+  /* secondary accent button (text/border on white bg) */
+  --color-components-button-secondary-accent-text: #0c4123;
+  --color-components-button-secondary-accent-text-disabled: #a8d9c1;
+
   /* text accent: matches MDS heading color */
   --color-text-accent: #0c4123;
   --color-text-accent-secondary: #157E46;
   --color-text-accent-light-mode-only: #0c4123;
+
+  /* form controls: checkbox / radio / toggle (active state) */
+  --color-components-checkbox-bg: #0c4123;
+  --color-components-checkbox-bg-hover: #0a3319;
+  --color-components-checkbox-bg-disabled-checked: #a8d9c1;
+  --color-components-radio-border-checked: #0c4123;
+  --color-components-radio-border-checked-hover: #0a3319;
+  --color-components-radio-border-checked-disabled: #a8d9c1;
+  --color-components-toggle-bg: #0c4123;
+  --color-components-toggle-bg-hover: #0a3319;
+  --color-components-toggle-bg-disabled: #d1ebe0;
+
+  /* navigation + tab indicators */
+  --color-components-main-nav-nav-button-text-active: #0c4123;
+  --color-components-tab-active: #0c4123;
+
+  /* progress bar */
+  --color-components-progress-bar-progress: rgb(12 65 35 / 0.14);
+  --color-components-progress-bar-progress-solid: #0c4123;
+  --color-components-progress-bar-progress-highlight: rgb(12 65 35 / 0.2);
+
+  /* solid icon background (brand-colored icon tiles) */
+  --color-components-icon-bg-blue-solid: #0c4123;
 
   /* util-blue ramp -> MDS green ramp (50 lightest, 900 darkest) */
   --color-util-colors-blue-blue-50:  #e8f5f0;

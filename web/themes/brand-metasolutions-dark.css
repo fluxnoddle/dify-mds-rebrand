@@ -10,6 +10,19 @@ html[data-theme="dark"] {
   --color-text-accent-secondary: #7dd3ae;
   --color-text-accent-light-mode-only: #d9d9de;
 
+  /* form controls (active state) */
+  --color-components-checkbox-bg: #52bd94;
+  --color-components-checkbox-bg-hover: #7dd3ae;
+  --color-components-radio-border-checked: #52bd94;
+  --color-components-radio-border-checked-hover: #7dd3ae;
+  --color-components-toggle-bg: #52bd94;
+  --color-components-toggle-bg-hover: #7dd3ae;
+
+  /* tabs / progress / icon bg */
+  --color-components-tab-active: #52bd94;
+  --color-components-progress-bar-progress-solid: #52bd94;
+  --color-components-icon-bg-blue-solid: #52bd94;
+
   /* inverted ramp: 50 darkest, 700 lightest */
   --color-util-colors-blue-blue-50:  #0a3319;
   --color-util-colors-blue-blue-100: #0c4123;
