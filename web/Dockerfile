@@ -83,6 +83,12 @@ COPY --chown=dify:dify --chmod=755 web/docker/entrypoint.sh ./entrypoint.sh
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA}
 
+LABEL org.opencontainers.image.title="MDS Web" \
+      org.opencontainers.image.vendor="MDS - Metadata Solutions" \
+      org.opencontainers.image.description="MDS rebrand of Dify web (Next.js console)." \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.revision="${COMMIT_SHA}"
+
 USER dify
 EXPOSE 3000
 ENTRYPOINT ["/bin/sh", "./entrypoint.sh"]

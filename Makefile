@@ -4,6 +4,12 @@ WEB_IMAGE=$(DOCKER_REGISTRY)/dify-web
 API_IMAGE=$(DOCKER_REGISTRY)/dify-api
 VERSION=latest
 
+# MDS rebrand image (override with `make build-mds-web MDS_REGISTRY=ghcr.io/<org>`)
+MDS_REGISTRY?=metasolutions
+MDS_WEB_IMAGE=$(MDS_REGISTRY)/mds-web
+MDS_VERSION?=$(shell git describe --always --dirty 2>/dev/null || echo rebrand)-mds
+MDS_COMMIT_SHA=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
 # Default target - show help
 .DEFAULT_GOAL := help
 
@@ -96,6 +102,18 @@ build-web:
 	docker build -f web/Dockerfile -t $(WEB_IMAGE):$(VERSION) .
 	@echo "Web Docker image built successfully: $(WEB_IMAGE):$(VERSION)"
 
+# MDS rebrand: builds web image with MDS tag + :latest, stamps git sha as COMMIT_SHA.
+# Override target platform for VPS deploy, e.g. `make build-mds-web PLATFORM=linux/amd64`.
+build-mds-web:
+	@echo "Building MDS web image: $(MDS_WEB_IMAGE):$(MDS_VERSION) (sha=$(MDS_COMMIT_SHA))..."
+	docker build -f web/Dockerfile \
+		$(if $(PLATFORM),--platform $(PLATFORM)) \
+		--build-arg COMMIT_SHA=$(MDS_COMMIT_SHA) \
+		-t $(MDS_WEB_IMAGE):$(MDS_VERSION) \
+		-t $(MDS_WEB_IMAGE):latest \
+		.
+	@echo "MDS web image built: $(MDS_WEB_IMAGE):$(MDS_VERSION)"
+
 build-api:
 	@echo "Building API Docker image: $(API_IMAGE):$(VERSION)..."
 	docker build -t $(API_IMAGE):$(VERSION) ./api
@@ -144,10 +162,11 @@ help:
 	@echo ""
 	@echo "Docker Build Targets:"
 	@echo "  make build-web      - Build web Docker image"
+	@echo "  make build-mds-web  - Build MDS-rebranded web image (override MDS_REGISTRY / MDS_VERSION / PLATFORM)"
 	@echo "  make build-api      - Build API Docker image"
 	@echo "  make build-all      - Build all Docker images"
 	@echo "  make push-all       - Push all Docker images"
 	@echo "  make build-push-all - Build and push all Docker images"
 
 # Phony targets
-.PHONY: build-web build-api push-web push-api build-all push-all build-push-all dev-setup prepare-docker prepare-web prepare-api dev-clean help format check lint type-check test
+.PHONY: build-web build-mds-web build-api push-web push-api build-all push-all build-push-all dev-setup prepare-docker prepare-web prepare-api dev-clean help format check lint type-check test
