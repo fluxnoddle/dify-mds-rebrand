@@ -7,6 +7,26 @@ description: "Deploy the MDS-rebranded Dify stack to the shared Vultr VM (207.14
 
 Single-VM coexistence deploy of the full Dify docker-compose stack on the same Vultr VM that hosts `data-platform-core`. Public URL: `https://agent.metasolutions.ai`. The skill runs `git`/`docker compose` over SSH — no Kubernetes, no Terraform, no image registry.
 
+## 📍 Current deployment snapshot (as of 2026-05-22)
+
+The first production deployment used **option B** (fresh dedicated VM, not shared with dp). Keep this table updated when re-provisioning.
+
+| Field | Value |
+|---|---|
+| Vultr instance ID | `6787a136-7a70-440e-b935-b9b94d5bf65c` |
+| Plan / region | `vc2-4c-8gb` ($40/mo) · `sgp` (Singapore) · Ubuntu 24.04 LTS x64 |
+| Public IP | `139.180.152.22` (DNS-pinned, see below) |
+| SSH alias | `vultr-agent` (in `~/.ssh/config`, identity `~/.ssh/vultr_vm_data_platform`) |
+| Vultr SSH key | id `f8f76a2b-c84b-405a-9a6e-86fac8bb11e1` name `MDS Dify Local` (fingerprint `SHA256:KL3gapnzMibk2yTO1Rx+ChQ1zvDtszLxUCum4vlVyFI`) |
+| Public URL | `https://agent.metasolutions.ai` |
+| TLS cert | Let's Encrypt E7, valid 2026-05-22 → 2026-08-20 (90 d) |
+| DNS provider | Vercel (NS `ns1.vercel-dns.com` / `ns2.vercel-dns.com`) — domain registered third-party, NS pointed at Vercel |
+| Stack | Dify 1.13.3 base + local `metasolutions/mds-web:latest` (Next.js with MDS rebrand) |
+| Compose project | `dify` (container prefix `dify-*`, isolates from dp's `data-platform-core-*` even though they're on different VMs) |
+| Owner accounts | `quoc.khanh.ut.0212@gmail.com` (migrated from local), `admin.department@metasolutions.software` (company admin) |
+| Migrated data | 1 tenant `akatekhanh's Workspace`, 5 apps, plugin_daemon + app/storage volumes |
+| **Does this VM also host data-platform-core?** | **No.** Fresh VM dedicated to Dify. The dp-guardrail in `remote-bootstrap.sh` no-ops on this host (no dp containers detected). |
+
 ## 🛑 Hard rule — DO NOT touch `data-platform-core`
 
 `data-platform-core` is the existing tenant on this VM and is treated as **read-only** by this skill. Every action here must stay strictly inside Dify's footprint. **No exceptions, no "just this once".**
@@ -253,6 +273,74 @@ Certbot inside the dify compose has its own profile. Run manually monthly (or wi
 ENABLE_TLS=1 ./.claude/skills/vultr-single/scripts/remote-bootstrap.sh
 ```
 
+## Migrating data from a local Dify
+
+Workflow used to move local `docker-*` Dify (Mac Docker Desktop) → fresh VPS. Total data was ~230 MB (postgres 78 MB + plugin_daemon 144 MB + app/storage 5 MB), scp took ~10 s.
+
+```bash
+# === On laptop ===
+# 0. Inventory (so you know what's being shipped)
+docker exec docker-db_postgres-1 du -sh /var/lib/postgresql/data
+du -sh ~/Documents/git_personal/hong_ngoc_ha_demo/dify/docker/volumes/{app,weaviate,plugin_daemon}/
+
+# 1. Freeze writes (keeps db/redis up for pg_dump but stops api/worker)
+cd ~/Documents/git_personal/hong_ngoc_ha_demo/dify/docker
+docker compose stop api worker worker_beat
+
+# 2. Dump postgres + tar bind-mount volumes
+docker exec docker-db_postgres-1 pg_dump -U postgres -d dify --clean --if-exists | gzip > /tmp/dify-pg.sql.gz
+tar -C volumes -czf /tmp/dify-volumes.tar.gz app weaviate plugin_daemon
+ls -lh /tmp/dify-pg.sql.gz /tmp/dify-volumes.tar.gz
+
+# 3. Ship to VPS
+scp /tmp/dify-pg.sql.gz /tmp/dify-volumes.tar.gz vultr-agent:/tmp/
+
+# === On VPS ===
+# 4. SECRET_KEY must match the local Dify's, or encrypted fields (LLM API keys,
+#    OAuth tokens) in DB won't decrypt. Local default is the inline value in
+#    docker-compose.yaml. Sync via:
+/usr/bin/ssh vultr-agent "sed -i 's|^SECRET_KEY=.*|SECRET_KEY=sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U|' /opt/dify/docker/.env"
+
+# 5. Stop dify services that lock the volumes, restore, restart
+/usr/bin/ssh vultr-agent 'set -e
+cd /opt/dify/docker
+docker compose -p dify stop api worker worker_beat web plugin_daemon weaviate
+gunzip < /tmp/dify-pg.sql.gz | docker exec -i dify-db_postgres-1 psql -U postgres -d dify
+cd /opt/dify/docker/volumes
+TS=$(date +%s)
+for d in app weaviate plugin_daemon; do [ -d "$d" ] && mv "$d" "${d}.bak.${TS}"; done
+tar -xzf /tmp/dify-volumes.tar.gz
+chown -R 1001:1001 app weaviate plugin_daemon
+cd /opt/dify/docker
+docker compose -p dify up -d'
+
+# 6. First call to API likely hangs (gunicorn cold start); restart api once:
+/usr/bin/ssh vultr-agent "cd /opt/dify/docker && docker compose -p dify restart api"
+
+# 7. Restart local stack (optional — if you still want local working)
+cd ~/Documents/git_personal/hong_ngoc_ha_demo/dify/docker && docker compose start api worker worker_beat
+```
+
+### Adding a second owner to the migrated tenant
+
+Useful when you migrated under a personal email but want a company admin too (without losing the original 5 apps). Done with a CLI hack + raw SQL:
+
+```bash
+# 1. CLI creates a NEW account (and a throwaway tenant) — needs both feature flags
+/usr/bin/ssh vultr-agent "docker exec -e ALLOW_REGISTER=true -e ALLOW_CREATE_WORKSPACE=true dify-api-1 \
+  flask create-tenant --email <new-admin>@<domain> --name 'Throwaway' --language en-US"
+# Note the printed temp password — reset it later with `flask reset-password`.
+
+# 2. SQL: attach the new account to the original tenant as owner, then drop the throwaway
+/usr/bin/ssh vultr-agent "docker exec dify-db_postgres-1 psql -U postgres -d dify -c \"
+  BEGIN;
+  INSERT INTO tenant_account_joins (tenant_id, account_id, role, current)
+    VALUES ('<ORIGINAL_TENANT_ID>', '<NEW_ACCOUNT_ID>', 'owner', false);
+  DELETE FROM tenant_account_joins WHERE tenant_id = '<THROWAWAY_TENANT_ID>';
+  DELETE FROM tenants WHERE id = '<THROWAWAY_TENANT_ID>';
+  COMMIT;\""
+```
+
 ## Coexistence checklist (do this before exposing)
 
 - [ ] DNS `agent.metasolutions.ai` → `207.148.120.195` propagated
@@ -279,6 +367,55 @@ ENABLE_TLS=1 ./.claude/skills/vultr-single/scripts/remote-bootstrap.sh
 - **Marketplace**: defaults to `https://marketplace.dify.ai` — fine to keep. Override to self-hosted via `MARKETPLACE_URL=` if needed.
 - **`docker system prune` is forbidden**: would nuke data-platform-core images too. Clean up Dify-specific cruft with `docker images | grep -E 'mds-web|dify-' | awk '{print $3}' | xargs -r docker rmi`.
 - **Shared docker network**: both stacks live on default bridge networks per their compose. No cross-talk needed; if you ever do need it, create a shared external network with `docker network create shared` and reference it from both compose files.
+
+## Tear-down checklist (destroy VM + clean up local + Vultr artifacts)
+
+When the test/demo is done. Reversible only by re-running the full provision.
+
+```bash
+# === Before destroying — take a final backup if data matters ===
+/usr/bin/ssh vultr-agent "docker exec dify-db_postgres-1 pg_dump -U postgres -d dify --clean --if-exists | gzip" \
+  > ~/dify-pg-final-$(date +%F).sql.gz
+/usr/bin/ssh vultr-agent "tar -C /opt/dify/docker/volumes -czf - app weaviate plugin_daemon" \
+  > ~/dify-volumes-final-$(date +%F).tar.gz
+ls -lh ~/dify-*-final-*.gz
+
+# === Stop containers gracefully (optional — destroy implies this) ===
+/usr/bin/ssh vultr-agent "cd /opt/dify/docker && docker compose -p dify down" || true
+
+# === Destroy the Vultr instance (this also removes the SSD/disk) ===
+vultr-cli instance delete 6787a136-7a70-440e-b935-b9b94d5bf65c
+
+# === Delete the Vultr-side SSH key (only the one we created for this VM) ===
+# Skip if you want to reuse 'MDS Dify Local' for future VMs.
+vultr-cli ssh delete f8f76a2b-c84b-405a-9a6e-86fac8bb11e1
+
+# === Local cleanup ===
+# 1. Remove the SSH alias block. Edit ~/.ssh/config manually OR (macOS sed):
+#    Look for the block starting with "# Added by provision-and-deploy.sh ..."
+#    immediately above "Host vultr-agent" and delete to the next blank line.
+
+# 2. Purge known_hosts entry (Vultr will reassign this IP eventually)
+ssh-keygen -R 139.180.152.22
+
+# 3. Optional: remove the docker-compose.override.yaml created on the laptop
+rm -f docker/docker-compose.override.yaml
+
+# 4. Optional: remove the locally built MDS web image
+docker rmi metasolutions/mds-web:latest metasolutions/mds-web:rebrand 2>/dev/null || true
+
+# === DNS — keep or remove ===
+# The 'agent A 139.180.152.22' record at Vercel DNS becomes a dangling pointer
+# once the IP is released. Either delete it from Vercel Dashboard → Domains →
+# metasolutions.ai → DNS Records, or update it next time you redeploy.
+# Let's Encrypt certificate auto-expires in 90 days; no cleanup needed.
+
+# === Revoke Vultr API key (if it was created just for this test) ===
+# my.vultr.com/settings/#settingsapi → revoke the personal access token
+# (especially if it was leaked in chat during setup — rotate regardless).
+```
+
+After destruction, `/usr/bin/ssh vultr-agent` will fail (`Connection refused`); that's the signal teardown is complete. Re-provision with `./.claude/skills/vultr-single/scripts/provision-and-deploy.sh` whenever needed — the skill is fully repeatable.
 
 ## What this skill does NOT do
 
