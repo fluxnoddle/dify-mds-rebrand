@@ -1,0 +1,125 @@
+#cloud-config
+# Cloud-init for a fresh Vultr VM that will host the MDS-rebranded Dify stack.
+# Triggered by `vultr-cli instance create --userdata <base64-of-this-file>`.
+#
+# At first boot this script:
+#   1. Installs Docker + Compose v2 via get.docker.com
+#   2. Adds 8 GB swapfile if RAM < 6 GB
+#   3. Clones the rebrand fork to /opt/dify
+#   4. Scaffolds docker/.env with NGINX_SERVER_NAME / SECRET_KEY / project name
+#   5. Builds the MDS web image via `make build-mds-web`
+#   6. Writes docker-compose.override.yaml pinning web → metasolutions/mds-web
+#   7. Brings the stack up in HTTP-only mode (ACME challenge endpoint live)
+#   8. Touches /var/lib/cloud/dify-bootstrap-done as the completion sentinel
+#
+# After that, the operator's laptop runs provision-and-deploy.sh to issue the
+# Let's Encrypt cert and flip nginx to HTTPS.
+
+package_update: true
+package_upgrade: false   # save 5-8 min on first boot — security upgrades can run later
+
+packages:
+  - git
+  - curl
+  - rsync
+  - ca-certificates
+  - jq
+  - make
+  - openssl
+
+write_files:
+  - path: /usr/local/sbin/dify-cloud-init.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/dify-cloud-init.log) 2>&1
+
+      REPO_URL="${REPO_URL:-https://github.com/fluxnoddle/dify-mds-rebrand.git}"
+      BRANCH="${BRANCH:-rebrand-mds-metasolutions}"
+      REMOTE_PATH=/opt/dify
+      COMPOSE_PROJECT=dify
+      DOMAIN="${DOMAIN:-agent.metasolutions.ai}"
+      CERTBOT_EMAIL="${CERTBOT_EMAIL:-admin.department@metasolutions.software}"
+
+      echo "[$(date -u +%FT%TZ)] === Dify VM bootstrap starting ==="
+
+      # 1. Docker
+      if ! command -v docker >/dev/null 2>&1; then
+        echo "[init] installing docker via get.docker.com ..."
+        curl -fsSL https://get.docker.com | sh
+        systemctl enable --now docker
+      fi
+      docker compose version
+
+      # 2. Swap (Dify peaks ~5 GB during first boot; add safety net on <6 GB VMs)
+      total_mb=$(free -m | awk '/^Mem:/{print $2}')
+      if [[ "$total_mb" -lt 6000 ]] && ! swapon --show | grep -q '^/swapfile'; then
+        echo "[init] RAM ${total_mb}MB < 6GB; creating 8GB swap ..."
+        fallocate -l 8G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile >/dev/null
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        sysctl -w vm.swappiness=10
+        echo 'vm.swappiness=10' >> /etc/sysctl.conf
+      fi
+
+      # 3. Clone repo (shallow — we don't need history on the VM)
+      if [[ ! -d "$REMOTE_PATH/.git" ]]; then
+        echo "[init] cloning $REPO_URL (branch $BRANCH) → $REMOTE_PATH ..."
+        git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$REMOTE_PATH"
+      else
+        echo "[init] $REMOTE_PATH already a git repo; pulling latest of $BRANCH ..."
+        git -C "$REMOTE_PATH" fetch origin "$BRANCH" --depth 1
+        git -C "$REMOTE_PATH" checkout -B "$BRANCH" "origin/$BRANCH"
+      fi
+
+      # 4. Scaffold docker/.env (only if missing — preserve operator edits on rerun)
+      cd "$REMOTE_PATH"
+      if [[ ! -f docker/.env ]]; then
+        cp docker/.env.example docker/.env
+        SECRET_KEY="$(openssl rand -base64 42)"
+        {
+          echo ""
+          echo "# --- MDS rebrand / cloud-init overrides ---"
+          echo "COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT"
+          echo "SECRET_KEY=$SECRET_KEY"
+          echo "NGINX_SERVER_NAME=$DOMAIN"
+          echo "CERTBOT_DOMAIN=$DOMAIN"
+          echo "CERTBOT_EMAIL=$CERTBOT_EMAIL"
+          echo "NGINX_HTTPS_ENABLED=false"
+          echo "NGINX_ENABLE_CERTBOT_CHALLENGE=true"
+          echo "CHECK_UPDATE_URL="
+        } >> docker/.env
+        echo "[init] docker/.env scaffolded with generated SECRET_KEY"
+      fi
+
+      # 5. Build MDS web image (slow first time — Next.js + pnpm install in Docker)
+      echo "[init] make build-mds-web (this is the long step — 10-20 min) ..."
+      make build-mds-web
+
+      # 6. Override file pinning web to local MDS image
+      cat > docker/docker-compose.override.yaml <<'OVERRIDE_EOF'
+      services:
+        web:
+          image: metasolutions/mds-web:latest
+      OVERRIDE_EOF
+
+      # 7. Bring up stack (HTTP-only — ACME challenge endpoint live for cert issuance)
+      cd "$REMOTE_PATH/docker"
+      docker compose -p "$COMPOSE_PROJECT" \
+        -f docker-compose.yaml -f docker-compose.override.yaml \
+        up -d
+      docker compose -p "$COMPOSE_PROJECT" ps --format "table {{.Service}}\t{{.Status}}"
+
+      # 8. Sentinel for the wrapper script to poll
+      mkdir -p /var/lib/cloud
+      touch /var/lib/cloud/dify-bootstrap-done
+      echo "[$(date -u +%FT%TZ)] === Dify VM bootstrap complete ==="
+
+runcmd:
+  - [ /usr/local/sbin/dify-cloud-init.sh ]
+
+final_message: "Dify cloud-init done. Sentinel at /var/lib/cloud/dify-bootstrap-done. Run provision-and-deploy.sh on the laptop to issue the TLS cert."
